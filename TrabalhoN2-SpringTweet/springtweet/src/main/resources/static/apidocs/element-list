@@ -1,0 +1,5 @@
+com.example.springtweet
+com.example.springtweet.classes
+com.example.springtweet.controllers
+com.example.springtweet.repositories
+com.example.springtweet.services
