@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Tweet - Atualizar Tweet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fffefef3;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        header {
+            background-color: #0f0f0fad;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        h1 { margin: 0; }
+        form {
+            background: #fff;
+            display: inline-block;
+            text-align: left;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        textarea, input {
+            width: 300px;
+            margin: 5px 0;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            background-color: #0f0f0fad;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #1c1c1c; }
+        #backBtn {
+            background-color: #ddd;
+            color: #000;
+            margin-bottom: 20px;
+        }
+        #backBtn:hover { background-color: #ccc; }
+        #result { margin-top: 20px; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            width: 300px;
+        }
+        .modal input {
+            width: 90%;
+            margin: 5px 0;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Atualizar Tweet</h1>
+
+    <button id="backBtn" onclick="goBack()">Voltar para tweets</button>
+
+    <h3>Informações do Tweet</h3>
+    <form id="updateForm" onsubmit="event.preventDefault(); openAuthModal();">
+        <label>ID do Usuário:</label><br>
+        <input type="number" id="userId" placeholder="ID do usuário"><br><br>
+
+        <label>Conteúdo do tweet:</label><br>
+        <textarea id="content" rows="3" placeholder="Digite o conteúdo atualizado"></textarea><br><br>
+
+        <button type="submit">Atualizar Tweet</button>
+    </form>
+
+    <div id="result"></div>
+
+    <!-- Modal de autenticação -->
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <h3>Confirme sua identidade</h3>
+            <input type="number" id="authId" placeholder="Seu ID"><br>
+            <input type="password" id="authPassword" placeholder="Sua senha"><br>
+            <button onclick="confirmAuth()">Confirmar</button>
+            <button onclick="closeAuthModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL_TWEETS = "http://localhost:8080/api/tweets";
+        const API_URL_USERS = "http://localhost:8080/api/users";
+        let tweetId = null;
+        let loadedTweet = null;
+
+        // Voltar para tela de listagem de tweets
+        function goBack() {
+            window.location.href = "tweets.html";
+        }
+
+        // Carregar tweet existente
+        window.onload = async function() {
+            const params = new URLSearchParams(window.location.search);
+            tweetId = params.get("id");
+
+            if (!tweetId) {
+                document.getElementById("result").innerHTML =
+                    "<p style='color:red;'>Nenhum tweet selecionado.</p>";
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL_TWEETS}/${tweetId}`);
+                if (!response.ok) throw new Error("Tweet não encontrado");
+                const tweet = await response.json();
+                loadedTweet = tweet;
+
+                document.getElementById("userId").value = tweet.user ? tweet.user.userId : "";
+                document.getElementById("content").value = tweet.content || "";
+
+                document.getElementById("result").innerHTML =
+                    `<p style="color:green;">Tweet carregado com sucesso!</p>`;
+            } catch (error) {
+                document.getElementById("result").innerHTML =
+                    `<p style="color:red;">${error.message}</p>`;
+            }
+        };
+
+        // Abrir modal de autenticação
+        function openAuthModal() {
+            document.getElementById("authId").value = "";
+            document.getElementById("authPassword").value = "";
+            document.getElementById("authModal").style.display = "flex";
+        }
+
+        // Fechar modal
+        function closeAuthModal() {
+            document.getElementById("authModal").style.display = "none";
+        }
+
+        // Confirmar autenticação antes de atualizar
+        async function confirmAuth() {
+            const authId = document.getElementById("authId").value.trim();
+            const password = document.getElementById("authPassword").value.trim();
+            closeAuthModal();
+
+            if (!authId || !password) {
+                document.getElementById("result").innerHTML =
+                    `<p style="color:red;">ID e senha são obrigatórios</p>`;
+                return;
+            }
+
+            try {
+                // Buscar usuário autenticador
+                const response = await fetch(`${API_URL_USERS}/${authId}`);
+                if (!response.ok) throw new Error("Usuário autenticador não encontrado");
+                const authUser = await response.json();
+
+                if (authUser.password !== password)
+                    throw new Error("Senha incorreta");
+
+                // Verifica se o autor do tweet é o mesmo usuário autenticado
+                if (loadedTweet.user.userId != authUser.userId) {
+                    throw new Error("Você não tem permissão para atualizar este tweet");
+                }
+
+                await updateTweet(authUser);
+            } catch (error) {
+                document.getElementById("result").innerHTML =
+                    `<p style="color:red;">${error.message}</p>`;
+            }
+        }
+
+        // Atualizar tweet (após autenticação)
+        async function updateTweet(authUser) {
+            const userId = document.getElementById("userId").value.trim();
+            const content = document.getElementById("content").value.trim();
+
+            if (!userId || !content) {
+                alert("Preencha o ID do usuário e o conteúdo do tweet.");
+                return;
+            }
+
+            try {
+                const tweetData = { content: content, user: { userId: parseInt(userId) } };
+
+                const response = await fetch(`${API_URL_TWEETS}/${tweetId}/update/${authUser.userId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(tweetData)
+                });
+
+                if (!response.ok) throw new Error("Erro ao atualizar o tweet");
+
+                document.getElementById("result").innerHTML =
+                    `<p style="color:green;">Tweet atualizado com sucesso!</p>`;
+            } catch (error) {
+                document.getElementById("result").innerHTML =
+                    `<p style="color:red;">${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

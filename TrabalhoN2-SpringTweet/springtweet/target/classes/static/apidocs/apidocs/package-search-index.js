@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"com.example.springtweet"},{"l":"com.example.springtweet.classes"},{"l":"com.example.springtweet.controllers"},{"l":"com.example.springtweet.repositories"},{"l":"com.example.springtweet.services"}];updateSearchResults();

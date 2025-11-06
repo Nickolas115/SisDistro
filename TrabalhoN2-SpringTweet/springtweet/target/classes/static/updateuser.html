@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Tweet - Atualização de Usuário</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fffefef3;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        header {
+            background-color: #0f0f0fad;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        h1 { margin: 0; }
+        input, select, textarea {
+            width: 250px;
+            padding: 6px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #0f0f0fad;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #1c1c1c; }
+        #backBtn {
+            background-color: #ddd;
+            color: #000;
+            margin-bottom: 20px;
+        }
+        #backBtn:hover { background-color: #ccc; }
+        form {
+            background: #fff;
+            display: inline-block;
+            text-align: left;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        #result { margin-top: 20px; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            width: 300px;
+        }
+        .modal input {
+            width: 90%;
+            margin: 5px 0;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header><h1>Atualizar Usuário</h1></header>
+
+    <button id="backBtn" onclick="goBack()">Voltar para pesquisa de usuários</button>
+
+    <div>
+        <h3>Buscar usuário para Atualizar</h3>
+        <input type="number" id="searchId" placeholder="ID do usuário">
+        <button onclick="loadUser()">Carregar Usuário</button>
+    </div>
+
+    <h3>Editar informações</h3>
+    <form id="updateForm" onsubmit="event.preventDefault(); openAuthModal();">
+        <label>Nome de tela:</label><br>
+        <input type="text" id="screenName"><br><br>
+
+        <label>Senha:</label><br>
+        <input type="password" id="password"><br><br>
+
+        <label>Bio:</label><br>
+        <input type="text" id="bio"><br><br>
+
+        <label>Imagem de perfil (URL):</label><br>
+        <input type="text" id="profileImage"><br><br>
+
+        <label>Função (Role):</label><br>
+        <select id="role">
+            <option value="USER">Usuário</option>
+            <option value="ADMIN">Administrador</option>
+        </select><br><br>
+
+        <label>Segue (IDs separados por vírgula):</label><br>
+        <input type="text" id="following"><br><br>
+
+        <button type="submit">Atualizar</button>
+    </form>
+
+    <div id="result"></div>
+
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <h3>Confirme sua identidade</h3>
+            <input type="number" id="authId" placeholder="Seu ID"><br>
+            <input type="password" id="authPassword" placeholder="Sua senha"><br>
+            <button onclick="confirmAuth()">Confirmar</button>
+            <button onclick="closeAuthModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8080/api/users";
+        let currentUserId = null;
+        let currentUser = null;
+        function goBack() { window.location.href = "users.html"; }
+        function openAuthModal() { document.getElementById("authModal").style.display = "flex"; }
+        function closeAuthModal() { document.getElementById("authModal").style.display = "none"; }
+        async function confirmAuth() {
+            const authId = document.getElementById("authId").value.trim();
+            const password = document.getElementById("authPassword").value.trim();
+            closeAuthModal();
+            if (!authId || !password) { document.getElementById("result").innerHTML = `<p style="color:red;">ID e senha são obrigatórios</p>`; return; }
+            try {
+                const response = await fetch(`${API_URL}/${authId}`);
+                if (!response.ok) throw new Error("Usuário autenticador não encontrado");
+                const authUser = await response.json();
+                if (authUser.password !== password) throw new Error("Senha incorreta");
+                if (authUser.userId != currentUserId) throw new Error("Você não tem permissão para atualizar este usuário");
+                await updateUser(authUser);
+            } catch (error) {
+                document.getElementById("result").innerHTML = `<p style="color:red;">${error.message}</p>`;
+            }
+        }
+        async function loadUser() {
+            const id = document.getElementById("searchId").value;
+            if (!id) { alert("Informe o ID do usuário para carregar."); return; }
+            try {
+                const response = await fetch(`${API_URL}/${id}`);
+                if (!response.ok) throw new Error("Usuário não encontrado");
+                const user = await response.json();
+                currentUserId = user.userId;
+                document.getElementById("screenName").value = user.screenName || "";
+                document.getElementById("password").value = user.password || "";
+                document.getElementById("bio").value = user.bio || "";
+                document.getElementById("profileImage").value = user.profileImage || "";
+                document.getElementById("role").value = user.role || "USER";
+                document.getElementById("following").value =
+                    (user.following && user.following.length > 0) ? user.following.map(f => f.userId).join(",") : "";
+                document.getElementById("result").innerHTML = `<p style="color:green;">Usuário carregado com sucesso!</p>`;
+            } catch (error) {
+                document.getElementById("result").innerHTML = `<p style="color:red;">${error.message}</p>`;
+            }
+        }
+        async function updateUser() {
+            if (!currentUserId) { alert("Carregue um usuário antes de atualizar."); return; }
+            const screenName = document.getElementById("screenName").value;
+            const password = document.getElementById("password").value;
+            const bio = document.getElementById("bio").value;
+            const profileImage = document.getElementById("profileImage").value;
+            const role = document.getElementById("role").value;
+            const followingIds = document.getElementById("following").value
+                .split(",").map(id => id.trim()).filter(id => id !== "").map(id => ({ userId: parseInt(id) }));
+            const updatedUser = { screenName, password, bio, profileImage, role, following: followingIds };
+            try {
+                const response = await fetch(`${API_URL}/${currentUserId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updatedUser)
+                });
+                const text = await response.text();
+                if (!text) throw new Error("Resposta vazia do servidor");
+                const data = JSON.parse(text);
+                if (data.error) throw new Error(data.error);
+                document.getElementById("result").innerHTML = `<p style="color:green;">Usuário atualizado com sucesso!</p>`;
+            } catch (error) {
+                document.getElementById("result").innerHTML = `<p style="color:red;">${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Tweet - Criação de Tweet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fffefef3;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        header {
+            background-color: #0f0f0fad;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        h1 { margin: 0; }
+        form {
+            background: #fff;
+            display: inline-block;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            text-align: left;
+        }
+        textarea, input {
+            width: 300px;
+            padding: 6px;
+            margin-top: 5px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            background-color: #0f0f0fad;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #1c1c1c; }
+        #backBtn {
+            background-color: #ddd;
+            color: #000;
+            margin-bottom: 20px;
+        }
+        #backBtn:hover { background-color: #ccc; }
+        #result { margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <header><h1>Criar Tweet</h1></header>
+
+    <button id="backBtn" onclick="goBack()">Voltar para tweets</button>
+
+    <form id="tweetForm" onsubmit="event.preventDefault(); createTweet();">
+        <label>ID do usuário:</label><br>
+        <input type="number" id="userId" placeholder="Digite o ID do usuário"><br><br>
+
+        <label>Conteúdo do Tweet:</label><br>
+        <textarea id="content" placeholder="Escreva seu tweet..." rows="4"></textarea><br><br>
+
+        <button type="submit">Postar Tweet</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        const USERS_API = "http://localhost:8080/api/users";
+        const TWEETS_API = "http://localhost:8080/api/tweets";
+        function goBack() { window.location.href = "tweets.html"; }
+        async function createTweet() {
+            const userId = document.getElementById("userId").value.trim();
+            const content = document.getElementById("content").value.trim();
+            const resultDiv = document.getElementById("result");
+            if (!userId || !content) { alert("Por favor, preencha todos os campos."); return; }
+            try {
+                const userResponse = await fetch(`${USERS_API}/${userId}`);
+                if (!userResponse.ok) {
+                    resultDiv.innerHTML = `<p style="color:red;">Usuário não encontrado.</p>`;
+                    return;
+                }
+                const tweetData = { content: content };
+                const response = await fetch(`${TWEETS_API}/create/${userId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(tweetData)
+                });
+                if (!response.ok) throw new Error("Erro ao criar o tweet");
+                resultDiv.innerHTML = `<p style="color:green;">Tweet postado com sucesso!</p>`;
+                document.getElementById("content").value = "";
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color:red;">Erro ao postar tweet.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

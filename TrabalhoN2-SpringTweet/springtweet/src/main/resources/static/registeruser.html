@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Tweet - Cadastro de Usuário</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fffefef3;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        header {
+            background-color: #0f0f0fad;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        h1 { margin: 0; }
+        form {
+            display: inline-block;
+            text-align: left;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        input, select, textarea, button {
+            margin-top: 5px;
+            padding: 6px;
+            width: 250px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        button {
+            cursor: pointer;
+            background-color: #0f0f0fad;
+            color: white;
+            border: none;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #1c1c1c;
+        }
+        #backBtn {
+            background-color: #ddd;
+            color: #000;
+            margin-bottom: 20px;
+        }
+        #backBtn:hover { background-color: #ccc; }
+        #responseMessage { margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <header><h1>Cadastrar Novo Usuário</h1></header>
+
+    <button id="backBtn" onclick="goBack()">Voltar para tela inicial</button>
+
+    <form id="registerForm">
+        <label>Nome:</label><br>
+        <input type="text" id="screenName" required><br><br>
+
+        <label>Senha:</label><br>
+        <input type="password" id="password" required><br><br>
+
+        <label>Biografia:</label><br>
+        <input type="text" id="bio"><br><br>
+
+        <label>Imagem de perfil (URL):</label><br>
+        <input type="text" id="profileImage"><br><br>
+
+        <label>Função (Role):</label><br>
+        <select id="role" required>
+            <option value="">Selecione...</option>
+            <option value="ADMIN">Administrador</option>
+            <option value="USER">Usuário</option>
+        </select><br><br>
+
+        <label>Segue (IDs separados por vírgula):</label><br>
+        <input type="text" id="following"><br><br>
+
+        <button type="submit">Cadastrar</button>
+    </form>
+
+    <h3 id="responseMessage"></h3>
+
+    <script>
+        const API_URL = "http://localhost:8080/api/users";
+
+        function goBack() { window.location.href = "index.html"; }
+
+        document.getElementById("registerForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            try {
+                const followingIds = document.getElementById("following").value
+                    .split(",")
+                    .map(id => id.trim())
+                    .filter(id => id !== "")
+                    .map(id => ({ userId: parseInt(id) }));
+
+                const userData = {
+                    screenName: document.getElementById("screenName").value.trim(),
+                    password: document.getElementById("password").value.trim(),
+                    bio: document.getElementById("bio").value.trim(),
+                    profileImage: document.getElementById("profileImage").value.trim(),
+                    role: document.getElementById("role").value,
+                    following: followingIds
+                };
+
+                const response = await fetch(`${API_URL}/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!response.ok) {
+                    let errText = await response.text();
+                    if (errText.toLowerCase().includes("constraint") || 
+                        errText.toLowerCase().includes("unique") || 
+                        errText.toLowerCase().includes("duplicate")) {
+                        errText = "Nome já está em uso";
+                    }
+                    throw new Error(errText || "Erro ao cadastrar usuário");
+                }
+
+                const data = await response.json();
+                document.getElementById("responseMessage").innerHTML =
+                    `<p style="color:green;">Usuário cadastrado com sucesso! ID: ${data.userId}</p>`;
+                document.getElementById("registerForm").reset();
+            } catch (error) {
+                document.getElementById("responseMessage").innerHTML =
+                    `<p style="color:red;">Erro ao criar usuário</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
